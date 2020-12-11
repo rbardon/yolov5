@@ -1,3 +1,5 @@
+pred_*
+valid_*
 # Repo-specific GitIgnore ----------------------------------------------------------------------------------------------
 *.jpg
 *.jpeg
@@ -19,9 +21,13 @@
 *.avi
 *.data
 *.json
-
+_*
 *.cfg
 !cfg/yolov3*.cfg
+
+.gitignore
+
+exp*
 
 storage.googleapis.com
 runs/*
