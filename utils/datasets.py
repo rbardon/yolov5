@@ -143,6 +143,47 @@ class LoadImages:  # for inference
         # cv2.imwrite(path + '.letterbox.jpg', 255 * img.transpose((1, 2, 0))[:, :, ::-1])  # save letterbox image
         return path, img, img0, self.cap
 
+class LoadImagesStream:  # for inference
+    def __init__(self, iarray, ipath, img_size=640):
+        self.video_flag = [False] * len(ipath)
+        self.mode = 'images'
+
+        nf = len(ipath)
+
+        self.img_size = img_size
+        self.files = iarray
+        self.path = ipath
+        self.nf = nf  # number of files
+        self.cap = None
+        assert self.nf > 0, 'No images or videos found in %s. Supported formats are:\nimages: %s\nvideos: %s' % \
+                            (p, img_formats, vid_formats)
+
+    def __iter__(self):
+        self.count = 0
+        return self
+
+    def __next__(self):
+        if self.count == self.nf:
+            raise StopIteration
+        file = self.files[self.count]
+        path = Path(self.path[self.count])
+
+        # Read image
+        self.count += 1
+        img0 = cv2.cvtColor(file, cv2.COLOR_RGB2BGR)
+        assert img0 is not None, 'Image Error'
+        print('image %g/%g %s: ' % (self.count, self.nf, path), end='')
+
+        # Padded resize
+        img = letterbox(img0, new_shape=self.img_size)[0]
+
+        # Convert
+        img = img[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
+        img = np.ascontiguousarray(img)
+
+        return path, img, img0, self.cap
+
+
     def new_video(self, path):
         self.frame = 0
         self.cap = cv2.VideoCapture(path)

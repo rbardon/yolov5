@@ -8,26 +8,29 @@ from pathlib import Path
 import cv2
 import torch
 import torch.backends.cudnn as cudnn
-from numpy import random
+from numpy import random, ndarray
 
 from models.experimental import attempt_load
-from utils.datasets import LoadStreams, LoadImages
+from utils.datasets import LoadStreams, LoadImages, LoadImagesStream
 from utils.general import (
     check_img_size, non_max_suppression, apply_classifier, scale_coords, xyxy2xywh, plot_one_box, strip_optimizer)
 from utils.torch_utils import select_device, load_classifier, time_synchronized
 
 
-def detect(save_img=False):
-    print(opt)
-    out, source, weights, view_img, save_txt, imgsz = \
-        opt.output, opt.source, opt.weights, opt.view_img, opt.save_txt, opt.img_size
-    webcam = source == '0' or source.startswith('rtsp') or source.startswith('http') or source.endswith('.txt')
+def detect():
+    out, source, weights, view_img, save_txt, save_confidence, imgsz, save_img = \
+        opt.output, opt.source, opt.weights, opt.view_img, opt.save_txt, opt.save_confidence, opt.img_size, opt.save_img
+    if type(source) is str:
+        webcam = source == '0' or source.startswith('rtsp') or source.startswith('http') or source.endswith('.txt')
+    else:
+        webcam = False
 
     # Initialize
     device = select_device(opt.device)
-    if os.path.exists(out):
-        shutil.rmtree(out)  # delete output folder
-    os.makedirs(out)  # make new output folder
+    if save_img or save_txt:
+        if os.path.exists(out):
+            shutil.rmtree(out)  # delete output folder
+        os.makedirs(out)  # make new output folder
     half = device.type != 'cpu'  # half precision only supported on CUDA
 
     # Load model
@@ -49,8 +52,9 @@ def detect(save_img=False):
         view_img = True
         cudnn.benchmark = True  # set True to speed up constant image size inference
         dataset = LoadStreams(source, img_size=imgsz)
+    elif opt.path:
+        dataset = LoadImagesStream(source, opt.path, img_size=imgsz)
     else:
-        # save_img = True
         dataset = LoadImages(source, img_size=imgsz)
 
     # Get names and colors
@@ -62,6 +66,8 @@ def detect(save_img=False):
     t0 = time.time()
     img = torch.zeros((1, 3, imgsz, imgsz), device=device)  # init img
     _ = model(img.half() if half else img) if device.type != 'cpu' else None  # run once
+
+    predictions = []
     for path, img, im0s, vid_cap in dataset:
         img = torch.from_numpy(img).to(device)
         img = img.half() if half else img.float()  # uint8 to fp16/32
@@ -103,17 +109,18 @@ def detect(save_img=False):
 
                 # Write results
                 for *xyxy, conf, cls in det:
+                    xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
                     if save_txt:  # Write to file
-                        xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
                         with open(txt_path + '.txt', 'a') as f:
                             f.write(('%g ' * 5 + '\n') % (cls, *xywh))  # label format
-
-                        with open(txt_path + '.confidence', 'a') as f:
-                            f.write(('%g\n') % (conf))  # label format
+                        if save_confidence:
+                            with open(txt_path + '.confidence', 'a') as f:
+                                f.write(('%g\n') % (conf))  # label format
 
                     if save_img or view_img:  # Add bbox to image
                         label = '%s %.2f' % (names[int(cls)], conf)
                         plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=3)
+                    predictions.append([Path(p).stem, *xywh, f'{conf:g}'])
 
             # Print time (inference + NMS)
             print('%sDone. (%.3fs)' % (s, t2 - t1))
@@ -147,6 +154,7 @@ def detect(save_img=False):
             os.system('open ' + save_path)
 
     print('Done. (%.3fs)' % (time.time() - t0))
+    return predictions
 
 
 if __name__ == '__main__':
