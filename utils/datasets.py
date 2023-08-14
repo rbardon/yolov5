@@ -380,7 +380,9 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
                 cache = self.cache_labels(cache_path)  # re-cache
         else:
             cache = self.cache_labels(cache_path)  # cache
-
+        for i in cache:
+            print(i.encode('utf-8'))
+        
         # Get labels
         labels, shapes = zip(*[cache[x] for x in self.img_files])
         self.shapes = np.array(shapes, dtype=np.float64)

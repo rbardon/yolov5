@@ -186,6 +186,12 @@ def test(data,
             f = Path(save_dir) / ('test_batch%g_gt.jpg' % batch_i)  # filename
             plot_images(img, targets, paths, str(f), names)  # ground truth
             f = Path(save_dir) / ('test_batch%g_pred.jpg' % batch_i)
+            # print(f"Type of output: {type(output)}")
+            # print(f"Length of output: {len(output)}")
+            # for i, item in enumerate(output):
+            #     if i < 5:  # print the type and contents of the first 5 items
+            #         print(f"Item {i} type: {type(item)}")
+            #         print(f"Item {i} content: {item}")
             plot_images(img, output_to_target(output, width, height), paths, str(f), names)  # predictions
 
     # Compute statistics
